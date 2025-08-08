@@ -1,0 +1,8 @@
+run = "Run"
+modules = ["nodejs-20"]
+[nix]
+channel = "stable-25_05"
+packages = ["jellyfin-ffmpeg", "wget"]
+
+[deployment]
+run = ["sh", "-c", "Run"]
