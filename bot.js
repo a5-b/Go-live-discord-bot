@@ -15,26 +15,26 @@ const execPromise = util.promisify(exec);
 const client = new Client({ checkUpdate: false });
 const streamer = new Streamer(client);
 
-// إعدادات البث
+
 const GUILD_ID = "1279854199798235197";
 const VOICE_CHANNEL_ID = "1330949990142709790";
 
 const VIDEO_URL = "https://shahidha.net/files/30897/%5BAnimeiat.co%5DKobayashi-san_Chi_no_Maid_Dragon_2nd_Season_-_EP03%5B720p%5D.mp4";
 const LOCAL_FILE = "./kobayashi_ep03_720p.mp4";
 
-// تحميل الفيديو إن لم يكن موجودًا
+
 async function downloadVideoWithWget(url, dest) {
   if (fs.existsSync(dest)) {
-    console.log("📁 الملف موجود مسبقًا");
+    console.log("The video is available");
     return;
   }
 
-  console.log("📥 جاري تحميل الفيديو...");
+  console.log("Video is loading");
   try {
     await execPromise(`wget -O "${dest}" "${url}"`);
-    console.log("✅ تم التحميل بنجاح");
+    console.log("Downloaded");
   } catch (err) {
-    console.error("❌ فشل التحميل:", err);
+    console.error("Download failed:", err);
     throw err;
   }
 }
@@ -42,12 +42,12 @@ async function downloadVideoWithWget(url, dest) {
 async function start() {
   try {
     await client.login(process.env.bot2_TOKEN);
-    console.log(`✅ تسجيل الدخول كـ ${client.user.username}`);
+    console.log(` done login ${client.user.username}`);
 
     await downloadVideoWithWget(VIDEO_URL, LOCAL_FILE);
 
     await streamer.joinVoice(GUILD_ID, VOICE_CHANNEL_ID);
-    console.log("✅ تم الانضمام إلى الروم");
+    console.log(" done Joined the voice");
 
     const udp = await streamer.createStream({
       width: 1280,
@@ -59,20 +59,20 @@ async function start() {
       minimizeLatency: true,
     });
 
-    // تفعيل Go Live
+    
     udp.mediaConnection.setVideoStatus(true);
     udp.mediaConnection.setSpeaking(true);
-    console.log("🎥 تم تفعيل البث");
+    console.log("stream activated");
 
-    console.log("⌛ الانتظار 3 ثواني...");
+    console.log("waiting 3 seconds");
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    console.log("🚀 بدأ ffmpeg");
+    console.log("starting ffmpeg");
 
     const result = await streamLivestreamVideo(LOCAL_FILE, udp, {
       ffmpegArgs: [
         "-fflags", "+genpts",
-        "-re", // محاكاة وقت حقيقي
+        "-re", 
         "-i", LOCAL_FILE,
         "-async", "1",
         "-vsync", "1",
@@ -95,14 +95,14 @@ async function start() {
       ]
     });
 
-    console.log("✅ تم البث:", result);
+    console.log("streaming:", result);
 
     udp.mediaConnection.setSpeaking(false);
     udp.mediaConnection.setVideoStatus(false);
-    console.log("🛑 إيقاف البث");
+    console.log("stream stopped");
 
   } catch (err) {
-    console.error("❌ خطأ:", err);
+    console.error("mistake:", err);
   }
 }
 
