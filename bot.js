@@ -4,50 +4,77 @@ import { config } from "dotenv";
 config();
 
 import fs from "fs";
-import { exec } from "child_process";
 import util from "util";
 import { Client } from "discord.js-selfbot-v13";
 import { Streamer, streamLivestreamVideo } from "@dank074/discord-video-stream";
-import ffmpegPath from "ffmpeg-static";
 
+import { exec } from "child_process";
 const execPromise = util.promisify(exec);
 
 const client = new Client({ checkUpdate: false });
-const streamer = new Streamer(client);
+
+const GUILD_ID = "1227932764117143642";
+const VOICE_CHANNEL_ID = "1259208320187760726";
 
 
-const GUILD_ID = "1279854199798235197";
-const VOICE_CHANNEL_ID = "1330949990142709790";
+process.env.FFMPEG_PATH = "/usr/bin/ffmpeg";
 
-const VIDEO_URL = "https://shahidha.net/files/30897/%5BAnimeiat.co%5DKobayashi-san_Chi_no_Maid_Dragon_2nd_Season_-_EP03%5B720p%5D.mp4";
-const LOCAL_FILE = "./kobayashi_ep03_720p.mp4";
+const STREAM_URL_MODE = true; 
+// if you put true here, it will stream the stream url and if you put false, it will stream the video url after downloading it
+const STREAM_URL = "";
+// if you put a stream url here, it will stream it directly
+const VIDEO_URL = "";
+// if you put a video url here, it will download the video and stream it
+const LOCAL_FILE = "./video.mp4";
 
-
-async function downloadVideoWithWget(url, dest) {
+async function downloadVideo(url, dest) {
   if (fs.existsSync(dest)) {
-    console.log("The video is available");
+    console.log("Video is available locally");
     return;
   }
-
   console.log("Video is loading");
   try {
     await execPromise(`wget -O "${dest}" "${url}"`);
     console.log("Downloaded");
-  } catch (err) {
-    console.error("Download failed:", err);
-    throw err;
+  } catch (error) {
+    console.error("Video loading failed:", error);
+    throw error;
   }
 }
 
 async function start() {
   try {
     await client.login(process.env.bot2_TOKEN);
-    console.log(` done login ${client.user.username}`);
+    console.log(`logged in: ${client.user.tag}`);
 
-    await downloadVideoWithWget(VIDEO_URL, LOCAL_FILE);
+    let inputSource = "";
 
+    if (STREAM_URL_MODE) {
+      console.log("✅ STREAM_URL");
+      inputSource = STREAM_URL;
+    } else {
+      console.log("Download video After streaming it");
+      await downloadVideo(VIDEO_URL, LOCAL_FILE);
+      inputSource = LOCAL_FILE;
+    }
+
+    const guild = client.guilds.cache.get(GUILD_ID);
+    if (!guild) {
+      console.error("did not find the server");
+      return;
+    }
+
+    const channel = guild.channels.cache.get(VOICE_CHANNEL_ID);
+    if (!channel) {
+      console.error("did not find the voice channel");
+      return;
+    }
+
+    const streamer = new Streamer(client);
     await streamer.joinVoice(GUILD_ID, VOICE_CHANNEL_ID);
-    console.log(" done Joined the voice");
+    console.log("joined to voice channel");
+
+    
 
     const udp = await streamer.createStream({
       width: 1280,
@@ -55,25 +82,22 @@ async function start() {
       fps: 30,
       bitrateKbps: 2500,
       h26xPreset: "ultrafast",
-      ffmpegPath,
+      ffmpegPath: process.env.FFMPEG_PATH,
       minimizeLatency: true,
     });
 
-    
     udp.mediaConnection.setVideoStatus(true);
     udp.mediaConnection.setSpeaking(true);
-    console.log("stream activated");
+    console.log("streaming started");
 
-    console.log("waiting 3 seconds");
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    console.log("starting ffmpeg");
-
-    const result = await streamLivestreamVideo(LOCAL_FILE, udp, {
+    const result = await streamLivestreamVideo(inputSource, udp, {
+      ffmpegPath: process.env.FFMPEG_PATH,
       ffmpegArgs: [
         "-fflags", "+genpts",
-        "-re", 
-        "-i", LOCAL_FILE,
+        "-re",
+        "-i", inputSource,
         "-async", "1",
         "-vsync", "1",
         "-flush_packets", "1",
@@ -95,14 +119,14 @@ async function start() {
       ]
     });
 
-    console.log("streaming:", result);
+    console.log("streaming ended:", result);
 
     udp.mediaConnection.setSpeaking(false);
     udp.mediaConnection.setVideoStatus(false);
-    console.log("stream stopped");
+    console.log("streaming stopped");
 
-  } catch (err) {
-    console.error("mistake:", err);
+  } catch (error) {
+    console.error("mistake:", error);
   }
 }
 

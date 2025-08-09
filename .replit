@@ -1,0 +1,4 @@
+modules = ["nodejs-20"]
+
+[nix]
+packages = ["arcan.ffmpeg"]
